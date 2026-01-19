@@ -7,6 +7,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// --- DATABASE GIẢ LẬP (Lưu trong RAM) ---
+// Lưu ý: Dữ liệu sẽ mất khi Server khởi động lại (Deploy mới).
+const transactions = [];
+
 // Route trang chủ để kiểm tra server sống hay chết
 app.get('/', (req, res) => {
   res.send('✅ SEO Audit Backend is running!');
@@ -62,13 +66,33 @@ app.post('/api/sepay-webhook', (req, res) => {
     
     console.log(`💰 Webhook nhận tiền: ${transferAmount} VND - Nội dung: ${transferContent}`);
 
-    // TODO: Viết logic cập nhật Database tại đây (Ví dụ: set user.is_pro = true)
+    // LƯU VÀO DATABASE GIẢ LẬP
+    const newTransaction = {
+      referenceCode,
+      amount: transferAmount,
+      content: transferContent,
+      date: new Date().toLocaleString('vi-VN')
+    };
+    transactions.unshift(newTransaction); // Thêm vào đầu danh sách
     
     return res.json({ success: true, message: 'Webhook received' });
   } catch (error) {
     console.error('Webhook Error:', error);
     return res.status(500).json({ success: false });
   }
+});
+
+// API xem danh sách giao dịch (Dùng để kiểm tra nhanh)
+app.get('/api/transactions', (req, res) => {
+  // Bảo mật bằng Admin Secret (Lấy từ biến môi trường hoặc mặc định 'admin123')
+  const adminSecret = process.env.ADMIN_SECRET || 'admin123';
+  const clientSecret = req.headers['x-admin-secret'] || req.query.key;
+
+  if (clientSecret !== adminSecret) {
+    return res.status(401).json({ error: 'Unauthorized: Sai hoặc thiếu Admin Key' });
+  }
+  
+  res.json({ total: transactions.length, data: transactions });
 });
 
 app.post('/api/analyze', async (req, res) => {
