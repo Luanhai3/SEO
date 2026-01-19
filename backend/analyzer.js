@@ -1,7 +1,8 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-async function analyzeSEO(url) {
+async function analyzeSEO(inputUrl) {
+  let url = inputUrl.trim();
   if (!url.startsWith('http')) url = 'https://' + url;
 
   const result = {
@@ -11,78 +12,122 @@ async function analyzeSEO(url) {
     audits: []
   };
 
+  const addAudit = (title, status, msg, fix = '') => {
+    result.audits.push({ title, status, msg, fix });
+
+    if (status === 'critical') {
+      result.score -= 15;
+      result.summary.critical++;
+    } else if (status === 'warning') {
+      result.score -= 5;
+      result.summary.warning++;
+    } else {
+      result.summary.passed++;
+    }
+  };
+
   try {
     const start = Date.now();
-    const { data } = await axios.get(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VN-SEO-Bot/1.0)' },
-      timeout: 10000
-    });
-    const loadTime = Date.now() - start;
-    const $ = cheerio.load(data);
 
-    const addAudit = (title, status, msg, fix) => {
-      result.audits.push({ title, status, msg, fix });
-      if (status === 'critical') {
-        result.score -= 15;
-        result.summary.critical++;
-      } else if (status === 'warning') {
-        result.score -= 5;
-        result.summary.warning++;
-      } else {
-        result.summary.passed++;
+    const response = await axios.get(url, {
+      timeout: 10000,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0',
+        'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8'
       }
-    };
+    });
 
-    // 1. Title
+    const loadTime = Date.now() - start;
+    const $ = cheerio.load(response.data);
+
+    // Title
     const title = $('title').text().trim();
     if (!title) {
-      addAudit('Thẻ Tiêu đề (Title)', 'critical', 'Website chưa có tiêu đề.', 'Thêm thẻ <title> vào phần <head>.');
+      addAudit(
+        'Thẻ Title',
+        'critical',
+        'Trang không có thẻ <title>.',
+        'Thêm <title> mô tả nội dung trang.'
+      );
     } else if (title.length < 10 || title.length > 60) {
-      addAudit('Độ dài Tiêu đề', 'warning', `Tiêu đề dài ${title.length} ký tự (Tốt nhất: 10-60).`, 'Viết lại tiêu đề ngắn gọn, chứa từ khóa chính.');
+      addAudit(
+        'Độ dài Title',
+        'warning',
+        `Title dài ${title.length} ký tự.`,
+        'Nên giữ trong khoảng 10–60 ký tự.'
+      );
     } else {
-      addAudit('Thẻ Tiêu đề (Title)', 'passed', `Tốt: "${title}"`, '');
+      addAudit('Thẻ Title', 'passed', `"${title}"`);
     }
 
-    // 2. Meta Description
+    // Meta description
     const metaDesc = $('meta[name="description"]').attr('content');
     if (!metaDesc) {
-      addAudit('Mô tả (Meta Description)', 'critical', 'Google không biết nội dung tóm tắt.', 'Thêm thẻ <meta name="description"> dài khoảng 150 ký tự.');
+      addAudit(
+        'Meta Description',
+        'critical',
+        'Thiếu mô tả meta.',
+        'Thêm <meta name="description"> khoảng 140–160 ký tự.'
+      );
     } else {
-      addAudit('Mô tả (Meta Description)', 'passed', 'Đã có mô tả meta.', '');
+      addAudit('Meta Description', 'passed', 'Đã tồn tại.');
     }
 
-    // 3. H1
+    // H1
     const h1 = $('h1');
     if (h1.length === 0) {
-      addAudit('Thẻ H1', 'critical', 'Không tìm thấy thẻ H1.', 'Thêm 1 thẻ <h1> chứa nội dung chính nhất.');
+      addAudit('Thẻ H1', 'critical', 'Không có thẻ H1.');
     } else if (h1.length > 1) {
-      addAudit('Thẻ H1', 'warning', `Có tới ${h1.length} thẻ H1.`, 'Chỉ nên giữ 1 thẻ H1 duy nhất.');
+      addAudit(
+        'Thẻ H1',
+        'warning',
+        `Có ${h1.length} thẻ H1.`,
+        'Chỉ nên có 1 H1.'
+      );
     } else {
-      addAudit('Thẻ H1', 'passed', 'Đã có 1 thẻ H1 chuẩn.', '');
+      addAudit('Thẻ H1', 'passed', 'Chuẩn.');
     }
 
-    // 4. Images Alt
+    // Image alt
     const imgs = $('img');
     let missingAlt = 0;
-    imgs.each((i, el) => { if (!$(el).attr('alt')) missingAlt++; });
+    imgs.each((_, img) => {
+      if (!$(img).attr('alt')) missingAlt++;
+    });
+
     if (missingAlt > 0) {
-      addAudit('Alt ảnh', 'warning', `Có ${missingAlt} ảnh thiếu mô tả.`, 'Thêm thuộc tính alt="mô tả" cho ảnh.');
+      addAudit(
+        'Alt ảnh',
+        'warning',
+        `${missingAlt} ảnh thiếu alt.`,
+        'Thêm alt cho ảnh để tối ưu SEO & accessibility.'
+      );
     } else {
-      addAudit('Alt ảnh', 'passed', 'Tất cả ảnh đều có mô tả.', '');
+      addAudit('Alt ảnh', 'passed', 'Đầy đủ.');
     }
 
-    // 5. Speed
+    // Speed
     if (loadTime > 2000) {
-      addAudit('Tốc độ', 'warning', `Phản hồi chậm (${loadTime}ms).`, 'Kiểm tra hosting hoặc nén ảnh.');
+      addAudit(
+        'Tốc độ tải',
+        'warning',
+        `Trang phản hồi ${loadTime}ms.`,
+        'Cân nhắc CDN, nén ảnh.'
+      );
     } else {
-      addAudit('Tốc độ', 'passed', `Tốt (${loadTime}ms).`, '');
+      addAudit('Tốc độ tải', 'passed', `${loadTime}ms`);
     }
 
     result.score = Math.max(0, result.score);
     return result;
 
-  } catch (e) {
-    return { error: true, msg: 'Không thể truy cập website. Kiểm tra lại đường dẫn.' };
+  } catch (err) {
+    return {
+      error: true,
+      msg: 'Không thể truy cập website hoặc bị chặn.',
+      detail: err.message
+    };
   }
 }
 
