@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
 import { useSession, signIn, signOut } from "next-auth/react";
 import {
   Search,
@@ -19,6 +21,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import confetti from 'canvas-confetti';
 
 /* ================= COMPONENTS ================= */
 
@@ -97,6 +100,8 @@ function HomeContent() {
   const [history, setHistory] = useState<any[]>([]);
   const [compareSelection, setCompareSelection] = useState<string[]>([]);
   const [showCompareModal, setShowCompareModal] = useState(false);
+  const [shake, setShake] = useState(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -157,11 +162,51 @@ function HomeContent() {
     }
   }, [API_URL, session, result]); // Cập nhật khi có kết quả mới
 
+  /* ================= SOUND EFFECTS ================= */
+
+  const playTypingSound = () => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      // Hiệu ứng âm thanh "Blip" điện tử ngẫu nhiên
+      oscillator.type = 'sine';
+      const freq = 600 + Math.random() * 200; // Tần số ngẫu nhiên 600-800Hz để tạo cảm giác tự nhiên
+      oscillator.frequency.setValueAtTime(freq, ctx.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.1);
+
+      gainNode.gain.setValueAtTime(0.03, ctx.currentTime); // Âm lượng nhỏ (3%)
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + 0.1);
+    } catch (e) {}
+  };
+
   /* ================= SEO CHECK ================= */
 
   const handleCheck = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url) return;
+    
+    // Validation: Kiểm tra rỗng hoặc không có dấu chấm (không phải domain)
+    if (!url.trim() || !url.includes('.')) {
+      setShake(true);
+      setError('Vui lòng nhập đúng định dạng URL (ví dụ: vnexpress.net)');
+      setTimeout(() => setShake(false), 500); // Reset trạng thái sau khi rung xong
+      return;
+    }
 
     setLoading(true);
     setResult(null);
@@ -195,6 +240,14 @@ function HomeContent() {
       signIn('google'); // Yêu cầu đăng nhập nếu chưa
       return;
     }
+
+    // Hiệu ứng pháo giấy chúc mừng
+    confetti({
+      particleCount: 150,
+      spread: 60,
+      origin: { y: 0.7 },
+      colors: ['#06b6d4', '#3b82f6', '#8b5cf6'] // Cyan, Blue, Purple
+    });
 
     setLoading(true);
     try {
@@ -234,6 +287,31 @@ function HomeContent() {
       router.replace('/');
     }
   }, [searchParams, router]);
+
+  // --- FIREWORKS EFFECT ---
+  useEffect(() => {
+    if (showSuccessModal) {
+      const duration = 15 * 1000; // Bắn liên tục trong 15 giây
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 100 };
+
+      const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+      const interval = setInterval(() => {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+          return clearInterval(interval);
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+      }, 250);
+
+      return () => clearInterval(interval);
+    }
+  }, [showSuccessModal]);
 
   /* ================= LOGOUT ================= */
 
@@ -497,17 +575,20 @@ function HomeContent() {
             <span>SEO<span className="text-cyan-400">Audit</span></span>
           </div>
           <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-400 items-center">
-            <a href="#" className="hover:text-cyan-400 transition-colors">Tính năng</a>
-            <a href="#" className="hover:text-cyan-400 transition-colors">Bảng giá</a>
+            <Link href="/features" className="hover:text-cyan-400 transition-colors">Tính năng</Link>
+            <Link href="/pricing" className="hover:text-cyan-400 transition-colors">Bảng giá</Link>
             {status === 'loading' ? (
               <span className="text-gray-600">...</span>
             ) : session ? (
               <div className="flex items-center gap-3 pl-4 border-l border-white/10">
                 {session.user?.image && (
-                  <img 
+                  <Image 
                     src={session.user.image} 
                     alt={session.user.name || 'Avatar'} 
-                    className="w-8 h-8 rounded-full border border-white/10 ring-2 ring-black"
+                    width={32}
+                    height={32}
+                    className="rounded-full border border-white/10 ring-2 ring-black"
+                    priority
                   />
                 )}
                 <span className="text-gray-200 font-semibold">{session.user?.name}</span>
@@ -547,16 +628,16 @@ function HomeContent() {
         {/* INPUT FORM */}
         <div className="bg-white/5 backdrop-blur-lg p-2 rounded-2xl border border-white/10 mb-16 max-w-2xl mx-auto shadow-2xl shadow-black/50 ring-1 ring-white/5">
           <form onSubmit={handleCheck} className="flex flex-col md:flex-row gap-2">
-            <div className="flex-1 relative group">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-cyan-400 transition-colors">
+            <div className={`flex-1 relative group ${shake ? 'animate-shake' : ''}`}>
+              <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${shake ? 'text-red-500' : 'text-gray-500 group-focus-within:text-cyan-400'}`}>
                 <Globe className="w-5 h-5" />
               </div>
               <input
-                className="w-full h-14 pl-12 pr-4 rounded-xl bg-black/40 border border-transparent focus:border-cyan-500/50 focus:bg-black/60 focus:ring-2 focus:ring-cyan-500/20 outline-none transition-all text-white placeholder:text-gray-600 font-medium"
+                className={`w-full h-14 pl-12 pr-4 rounded-xl bg-black/40 border outline-none transition-all text-white placeholder:text-gray-600 font-medium ${shake ? 'border-red-500/50 ring-2 ring-red-500/20' : 'border-transparent focus:border-cyan-500/50 focus:bg-black/60 focus:ring-2 focus:ring-cyan-500/20'}`}
                 placeholder="Nhập domain (vd: vnexpress.net)"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                required
+                onKeyDown={playTypingSound}
               />
             </div>
             <button 

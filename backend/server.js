@@ -1,9 +1,12 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const { SePayPgClient } = require('sepay-pg-node');
 const { analyzeSEO } = require('./analyzer');
 const cron = require('node-cron');
 const nodemailer = require('nodemailer');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
 app.use(cors());
@@ -206,6 +209,39 @@ app.post('/api/analyze', async (req, res) => {
   }
 
   res.json(result);
+});
+
+// API Chatbot (Giả lập AI)
+app.post('/api/chat', async (req, res) => {
+  const { message } = req.body;
+
+  // Nếu chưa cấu hình Key thì dùng câu trả lời mặc định
+  if (!process.env.GEMINI_API_KEY) {
+    return res.json({ reply: "Hệ thống AI đang bảo trì (Thiếu API Key). Vui lòng thử lại sau." });
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    // Sử dụng model gemini-1.5-flash cho tốc độ phản hồi nhanh nhất
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const prompt = `
+      Bạn là trợ lý AI chuyên nghiệp của "SEO Audit Tool".
+      Nhiệm vụ: Hỗ trợ người dùng về kiến thức SEO, giải thích lỗi kỹ thuật website và hướng dẫn sử dụng công cụ.
+      Phong cách: Thân thiện, ngắn gọn, chuyên gia.
+      Thông tin sản phẩm: Gói Free (0đ), Gói PRO (50k/tháng - có xuất PDF, lịch sử, email báo cáo).
+      Câu hỏi của người dùng: "${message}"
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    res.json({ reply: text });
+  } catch (error) {
+    console.error("Gemini Error:", error);
+    res.json({ reply: "Xin lỗi, tôi đang gặp chút sự cố kết nối với bộ não AI. Bạn hỏi lại sau nhé!" });
+  }
 });
 
 const PORT = process.env.PORT || 4000;
