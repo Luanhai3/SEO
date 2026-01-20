@@ -20,6 +20,48 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
+/* ================= COMPONENTS ================= */
+
+const Typewriter = ({ text, className }: { text: string; className?: string }) => {
+  const [displayText, setDisplayText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    if (!isDeleting && displayText.length < text.length) {
+      // Đang gõ chữ
+      timer = setTimeout(() => {
+        setDisplayText(text.slice(0, displayText.length + 1));
+      }, 150);
+    } else if (!isDeleting && displayText.length === text.length) {
+      // Gõ xong, chờ 2s rồi xóa
+      timer = setTimeout(() => {
+        setIsDeleting(true);
+      }, 2000);
+    } else if (isDeleting && displayText.length > 0) {
+      // Đang xóa chữ (nhanh hơn)
+      timer = setTimeout(() => {
+        setDisplayText(text.slice(0, displayText.length - 1));
+      }, 50);
+    } else if (isDeleting && displayText.length === 0) {
+      // Xóa xong, chờ 0.5s rồi gõ lại
+      timer = setTimeout(() => {
+        setIsDeleting(false);
+      }, 500);
+    }
+
+    return () => clearTimeout(timer);
+  }, [displayText, isDeleting, text]);
+
+  return (
+    <span className="inline-flex">
+      <span className={className}>{displayText}</span>
+      <span className="animate-pulse text-cyan-400 ml-1">|</span>
+    </span>
+  );
+};
+
 /* ================= TYPES ================= */
 
 interface AuditResult {
@@ -382,13 +424,69 @@ function HomeContent() {
     doc.save(`SEO-Comparison-${Date.now()}.pdf`);
   };
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    
+    // PERFORMANCE: Nếu đang có frame chờ xử lý thì bỏ qua sự kiện này (Debounce)
+    if (target.dataset.ticking) return;
+    
+    target.dataset.ticking = "true";
+    const { clientX, clientY } = e;
+
+    requestAnimationFrame(() => {
+      const rect = target.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      target.style.setProperty("--mouse-x", `${x}px`);
+      target.style.setProperty("--mouse-y", `${y}px`);
+
+      // --- 3D TILT CALCULATION ---
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const rotateX = ((y - centerY) / centerY) * -5; 
+      const rotateY = ((x - centerX) / centerX) * 5;
+      
+      target.style.setProperty("--tilt-x", `${rotateX}deg`);
+      target.style.setProperty("--tilt-y", `${rotateY}deg`);
+      
+      // Đánh dấu đã xử lý xong frame này
+      delete target.dataset.ticking;
+    });
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.style.setProperty("--tilt-x", "0deg");
+    e.currentTarget.style.setProperty("--tilt-y", "0deg");
+  };
+
+  const handleGlobalMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (target.dataset.tickingGlobal) return;
+    target.dataset.tickingGlobal = "true";
+
+    const { clientX, clientY } = e;
+
+    requestAnimationFrame(() => {
+      const x = (clientX / window.innerWidth) - 0.5;
+      const y = (clientY / window.innerHeight) - 0.5;
+      
+      target.style.setProperty("--parallax-x", `${x}`);
+      target.style.setProperty("--parallax-y", `${y}`);
+      
+      delete target.dataset.tickingGlobal;
+    });
+  };
+
   /* ================= RENDER ================= */
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-cyan-500/30 flex flex-col relative overflow-hidden">
+    <div 
+      onMouseMove={handleGlobalMouseMove}
+      className="min-h-screen bg-[#050505] text-white font-sans selection:bg-cyan-500/30 flex flex-col relative overflow-hidden"
+    >
       {/* Background Glow Effects */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] -z-10 mix-blend-screen pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[800px] h-[600px] bg-purple-600/10 rounded-full blur-[100px] -z-10 mix-blend-screen pointer-events-none" />
+      <div className="absolute top-0 left-1/2 w-[1000px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] -z-10 mix-blend-screen pointer-events-none transition-transform duration-1000 ease-out" style={{ transform: 'translate(calc(-50% + var(--parallax-x, 0) * 50px), calc(var(--parallax-y, 0) * 50px))' }} />
+      <div className="absolute bottom-0 right-0 w-[800px] h-[600px] bg-purple-600/10 rounded-full blur-[100px] -z-10 mix-blend-screen pointer-events-none transition-transform duration-1000 ease-out" style={{ transform: 'translate(calc(var(--parallax-x, 0) * -60px), calc(var(--parallax-y, 0) * -60px))' }} />
 
       <header className="bg-[#050505]/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -435,9 +533,10 @@ function HomeContent() {
           </div>
           <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-white leading-tight">
             Audit Website <br/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600">
-              Siêu Tốc Độ
-            </span>
+            <Typewriter 
+              text="Siêu Tốc Độ" 
+              className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600" 
+            />
           </h1>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
             Phân tích SEO On-page, Technical và Content với công nghệ AI. <br className="hidden md:block"/>
@@ -482,7 +581,7 @@ function HomeContent() {
             {/* SCORE DASHBOARD SKELETON */}
             <div className="grid md:grid-cols-3 gap-6">
               {/* Score Circle Skeleton */}
-              <div className="bg-[#13131A] p-6 rounded-3xl border border-white/5 flex flex-col items-center justify-center md:col-span-1 h-64">
+              <div className="glass-card p-6 rounded-3xl flex flex-col items-center justify-center md:col-span-1 h-64">
                 <div className="w-40 h-40 rounded-full bg-white/5 border-8 border-white/5"></div>
                 <div className="mt-6 h-4 w-24 bg-white/5 rounded-full"></div>
               </div>
@@ -490,7 +589,7 @@ function HomeContent() {
               {/* Stats Grid Skeleton */}
               <div className="md:col-span-2 grid grid-cols-3 gap-4">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="bg-[#13131A] rounded-3xl p-5 border border-white/5 flex flex-col justify-center items-center h-full">
+                  <div key={i} className="glass-card rounded-3xl p-5 flex flex-col justify-center items-center h-full">
                     <div className="h-8 w-12 bg-white/5 rounded-lg mb-2"></div>
                     <div className="h-4 w-20 bg-white/5 rounded-lg"></div>
                   </div>
@@ -502,7 +601,7 @@ function HomeContent() {
             <div className="space-y-4">
               <div className="h-7 w-40 bg-white/5 rounded-lg"></div>
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-[#13131A] p-5 rounded-2xl border border-white/5">
+                <div key={i} className="glass-card p-5 rounded-2xl">
                   <div className="flex items-start gap-4">
                     <div className="w-6 h-6 rounded-full bg-white/5 shrink-0"></div>
                     <div className="flex-1 space-y-3">
@@ -519,7 +618,7 @@ function HomeContent() {
         {/* HISTORY CHART (Chỉ hiện khi có dữ liệu lịch sử) */}
         {history.length > 1 && !loading && (
           <div className="mb-16 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
-            <div className="bg-[#13131A] p-6 md:p-8 rounded-3xl border border-white/5 shadow-2xl relative overflow-hidden">
+            <div className="glass-card p-6 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-2xl font-bold text-white">Xu hướng điểm số</h3>
@@ -577,7 +676,7 @@ function HomeContent() {
                   className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
                     compareSelection.includes(item.id) 
                       ? 'bg-cyan-900/20 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.1)]' 
-                      : 'bg-[#13131A] border-white/5 hover:border-white/20'
+                      : 'glass-card hover:border-white/20'
                   }`}
                 >
                   <div className="flex items-center gap-4">
@@ -606,7 +705,7 @@ function HomeContent() {
             {/* SCORE DASHBOARD */}
             <div className="grid md:grid-cols-3 gap-6">
               {/* Score Circle */}
-              <div className="bg-[#13131A] p-8 rounded-3xl border border-white/5 flex flex-col items-center justify-center md:col-span-1 relative overflow-hidden shadow-2xl">
+              <div className="glass-card p-8 rounded-3xl flex flex-col items-center justify-center md:col-span-1 relative overflow-hidden shadow-2xl">
                 <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
                 <div className="relative w-48 h-48 flex items-center justify-center">
                   <svg className="w-full h-full transform -rotate-90 drop-shadow-[0_0_15px_rgba(0,0,0,0.5)]">
@@ -627,17 +726,20 @@ function HomeContent() {
 
               {/* Stats Grid */}
               <div className="md:col-span-2 grid grid-cols-3 gap-4">
-                <div className="bg-[#13131A] rounded-3xl p-6 border border-white/5 flex flex-col justify-center items-center text-center hover:border-green-500/30 transition-colors group">
-                  <span className="text-4xl font-bold text-green-500 mb-2 group-hover:scale-110 transition-transform">{result.summary.passed}</span>
-                  <span className="text-sm font-medium text-gray-400 uppercase tracking-wider">Đạt chuẩn</span>
+                <div onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} className="relative glass-card rounded-3xl p-6 flex flex-col justify-center items-center text-center hover:border-green-500/30 transition-colors group overflow-hidden">
+                  <div className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100" style={{ background: `radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(34, 197, 94, 0.15), transparent 40%)` }} />
+                  <span className="relative z-10 text-4xl font-bold text-green-500 mb-2 group-hover:scale-110 transition-transform">{result.summary.passed}</span>
+                  <span className="relative z-10 text-sm font-medium text-gray-400 uppercase tracking-wider">Đạt chuẩn</span>
                 </div>
-                <div className="bg-[#13131A] rounded-3xl p-6 border border-white/5 flex flex-col justify-center items-center text-center hover:border-yellow-500/30 transition-colors group">
-                  <span className="text-4xl font-bold text-yellow-500 mb-2 group-hover:scale-110 transition-transform">{result.summary.warning}</span>
-                  <span className="text-sm font-medium text-gray-400 uppercase tracking-wider">Cảnh báo</span>
+                <div onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} className="relative glass-card rounded-3xl p-6 flex flex-col justify-center items-center text-center hover:border-yellow-500/30 transition-colors group overflow-hidden">
+                  <div className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100" style={{ background: `radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(234, 179, 8, 0.15), transparent 40%)` }} />
+                  <span className="relative z-10 text-4xl font-bold text-yellow-500 mb-2 group-hover:scale-110 transition-transform">{result.summary.warning}</span>
+                  <span className="relative z-10 text-sm font-medium text-gray-400 uppercase tracking-wider">Cảnh báo</span>
                 </div>
-                <div className="bg-[#13131A] rounded-3xl p-6 border border-white/5 flex flex-col justify-center items-center text-center hover:border-red-500/30 transition-colors group">
-                  <span className="text-4xl font-bold text-red-500 mb-2 group-hover:scale-110 transition-transform">{result.summary.critical}</span>
-                  <span className="text-sm font-medium text-gray-400 uppercase tracking-wider">Nghiêm trọng</span>
+                <div onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} className="relative glass-card rounded-3xl p-6 flex flex-col justify-center items-center text-center hover:border-red-500/30 transition-colors group overflow-hidden">
+                  <div className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100" style={{ background: `radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(239, 68, 68, 0.15), transparent 40%)` }} />
+                  <span className="relative z-10 text-4xl font-bold text-red-500 mb-2 group-hover:scale-110 transition-transform">{result.summary.critical}</span>
+                  <span className="relative z-10 text-sm font-medium text-gray-400 uppercase tracking-wider">Nghiêm trọng</span>
                 </div>
               </div>
             </div>
@@ -659,12 +761,13 @@ function HomeContent() {
                 </button>
               </div>
               {result.audits.map((a, i) => (
-                <div key={i} className={`group bg-[#13131A] p-6 rounded-2xl border transition-all duration-300 hover:-translate-y-1 hover:bg-[#1A1A24] ${
-                  a.status === 'critical' ? 'border-l-4 border-l-red-500 border-white/5 hover:border-red-500/50 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]' : 
-                  a.status === 'warning' ? 'border-l-4 border-l-yellow-500 border-white/5 hover:border-yellow-500/50 hover:shadow-[0_0_25px_rgba(234,179,8,0.2)]' : 
-                  'border-l-4 border-l-green-500 border-white/5 hover:border-green-500/50 hover:shadow-[0_0_25px_rgba(34,197,94,0.2)]'
+                <div key={i} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} className={`relative group glass-card p-6 rounded-2xl transition-all duration-300 hover:bg-white/10 overflow-hidden ${
+                  a.status === 'critical' ? 'border-l-4 border-l-red-500 hover:border-red-500/50 hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]' : 
+                  a.status === 'warning' ? 'border-l-4 border-l-yellow-500 hover:border-yellow-500/50 hover:shadow-[0_0_25px_rgba(234,179,8,0.2)]' : 
+                  'border-l-4 border-l-green-500 hover:border-green-500/50 hover:shadow-[0_0_25px_rgba(34,197,94,0.2)]'
                 }`}>
-                  <div className="flex items-start gap-5">
+                  <div className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100" style={{ background: `radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.06), transparent 40%)` }} />
+                  <div className="relative z-10 flex items-start gap-5">
                     <div className="mt-1 shrink-0 p-2 rounded-lg bg-black/30">
                       {a.status === 'passed' && <CheckCircle className="w-6 h-6 text-green-500" />}
                       {a.status === 'warning' && <AlertTriangle className="w-6 h-6 text-yellow-500" />}
@@ -742,7 +845,7 @@ function HomeContent() {
 
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-[#13131A] p-8 rounded-3xl text-center border border-white/10 shadow-2xl max-w-sm w-full">
+          <div className="glass-card p-8 rounded-3xl text-center shadow-2xl max-w-sm w-full">
             <CheckCircle className="mx-auto text-green-500 w-12 h-12" />
             <h3 className="text-xl font-bold mt-4 text-white">Thanh toán thành công</h3>
             <button
@@ -758,7 +861,7 @@ function HomeContent() {
       {/* COMPARISON MODAL */}
       {showCompareModal && getComparisonData() && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-[#13131A] w-full max-w-5xl h-[90vh] rounded-3xl border border-white/10 shadow-2xl flex flex-col overflow-hidden">
+          <div className="glass-card w-full max-w-5xl h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden">
             {/* Header */}
             <div className="p-6 border-b border-white/10 flex justify-between items-center bg-[#0A0A0F]">
               <h3 className="text-2xl font-bold text-white">So sánh kết quả</h3>
