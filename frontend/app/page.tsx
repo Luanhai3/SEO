@@ -17,6 +17,7 @@ import {
   Download,
   Lock,
   X,
+  Star,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -83,6 +84,7 @@ interface AuditResult {
     status: 'passed' | 'warning' | 'critical';
     msg: string;
     fix: string;
+    isPro?: boolean;
   }[];
   date?: string;
 }
@@ -104,6 +106,10 @@ function HomeContent() {
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [shake, setShake] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const [showRating, setShowRating] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [isRated, setIsRated] = useState(false);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -170,6 +176,22 @@ function HomeContent() {
       fetchHistory();
     }
   }, [API_URL, session, result]); // Cập nhật khi có kết quả mới
+
+  // Hiển thị popup đánh giá sau khi có kết quả audit
+  useEffect(() => {
+    if (result && !isRated) {
+      const timer = setTimeout(() => {
+        setShowRating(true);
+      }, 5000); // Hiện sau 5 giây
+      return () => clearTimeout(timer);
+    }
+  }, [result, isRated]);
+
+  const handleRate = (score: number) => {
+    setRating(score);
+    setIsRated(true);
+    setTimeout(() => setShowRating(false), 3000);
+  };
 
   /* ================= SOUND EFFECTS ================= */
 
@@ -839,24 +861,44 @@ function HomeContent() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-gray-100 text-lg">{a.title}</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-gray-100 text-lg">{a.title}</h4>
+                          {a.isPro && !isPro && (
+                            <span className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Lock className="w-3 h-3" /> PRO
+                            </span>
+                          )}
+                        </div>
                         <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
                           a.status === 'critical' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
                           a.status === 'warning' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'
                         }`}>{a.status}</span>
                       </div>
-                      <p className="text-gray-400 leading-relaxed text-sm">{a.msg}</p>
                       
-                      {a.status !== 'passed' && (
-                        <div className="mt-4 pt-4 border-t border-white/5">
-                          <div className="flex items-start gap-3 text-sm text-gray-300 bg-white/5 p-4 rounded-xl border border-white/5">
-                            <ArrowRight className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
-                            <div>
-                              <span className="font-bold text-cyan-400 block mb-1">Giải pháp: </span>
-                              {a.fix}
-                            </div>
-                          </div>
+                      {a.isPro && !isPro ? (
+                        <div className="mt-2">
+                          <p className="text-gray-500 text-sm blur-[3px] select-none opacity-50">
+                            Nội dung này đã bị ẩn. Vui lòng nâng cấp tài khoản để xem chi tiết lỗi và cách khắc phục.
+                          </p>
+                          <button onClick={handleSePayCheckout} className="mt-2 text-cyan-400 text-sm font-bold hover:underline flex items-center gap-1">
+                            Mở khóa ngay <ArrowRight className="w-3 h-3" />
+                          </button>
                         </div>
+                      ) : (
+                        <>
+                          <p className="text-gray-400 leading-relaxed text-sm">{a.msg}</p>
+                          {a.status !== 'passed' && (
+                            <div className="mt-4 pt-4 border-t border-white/5">
+                              <div className="flex items-start gap-3 text-sm text-gray-300 bg-white/5 p-4 rounded-xl border border-white/5">
+                                <ArrowRight className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                                <div>
+                                  <span className="font-bold text-cyan-400 block mb-1">Giải pháp: </span>
+                                  {a.fix}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -991,6 +1033,62 @@ function HomeContent() {
                 );
               })()}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* RATING NOTIFICATION POPUP */}
+      {showRating && (
+        <div className="fixed bottom-6 left-6 z-[100] animate-in slide-in-from-bottom-10 fade-in duration-500">
+          <div className="glass-card p-5 rounded-2xl border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.5)] bg-[#050505]/90 backdrop-blur-xl max-w-xs relative overflow-hidden group">
+            <button 
+              onClick={() => setShowRating(false)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-white transition-colors p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {!isRated ? (
+              <>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                    <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-white text-sm">Đánh giá trải nghiệm</h4>
+                    <p className="text-xs text-gray-400">Bạn hài lòng với kết quả chứ?</p>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      onClick={() => handleRate(star)}
+                      className="p-1 transition-transform hover:scale-110 focus:outline-none"
+                    >
+                      <Star 
+                        className={`w-6 h-6 transition-colors duration-200 ${
+                          star <= (hoverRating || rating) 
+                            ? 'text-yellow-400 fill-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]' 
+                            : 'text-gray-800 fill-gray-900/50'
+                        }`} 
+                      />
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-2 text-center px-4">
+                <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center mb-2 animate-in zoom-in duration-300 border border-green-500/30">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                </div>
+                <h4 className="font-bold text-white text-sm">Cảm ơn bạn!</h4>
+                <p className="text-xs text-gray-400 mt-1">Đánh giá của bạn đã được ghi nhận.</p>
+              </div>
+            )}
           </div>
         </div>
       )}

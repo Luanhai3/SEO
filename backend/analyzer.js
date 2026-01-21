@@ -12,8 +12,8 @@ async function analyzeSEO(inputUrl) {
     audits: []
   };
 
-  const addAudit = (title, status, msg, fix = '') => {
-    result.audits.push({ title, status, msg, fix });
+  const addAudit = (title, status, msg, fix = '', isPro = false) => {
+    result.audits.push({ title, status, msg, fix, isPro });
 
     if (status === 'critical') {
       result.score -= 15;
@@ -110,14 +110,112 @@ async function analyzeSEO(inputUrl) {
     // Speed
     if (loadTime > 2000) {
       addAudit(
-        'Tốc độ tải',
+        'Phản hồi Server',
         'warning',
         `Trang phản hồi ${loadTime}ms.`,
         'Cân nhắc CDN, nén ảnh.'
       );
     } else {
-      addAudit('Tốc độ tải', 'passed', `${loadTime}ms`);
+      addAudit('Phản hồi Server', 'passed', `${loadTime}ms`);
     }
+
+    // --- NEW CHECKS ---
+
+    // URL Friendly (Basic)
+    if (url.includes('_')) {
+      addAudit('URL Thân thiện', 'warning', 'URL chứa dấu gạch dưới (_).', 'Nên dùng dấu gạch ngang (-) trong URL.');
+    } else if (url.length > 100) {
+      addAudit('URL Thân thiện', 'warning', 'URL quá dài.', 'Tối ưu URL ngắn gọn hơn.');
+    } else {
+      addAudit('URL Thân thiện', 'passed', 'URL chuẩn SEO.');
+    }
+
+    // Mobile Viewport (Basic)
+    const viewport = $('meta[name="viewport"]').attr('content');
+    if (viewport && viewport.includes('width=device-width')) {
+      addAudit('Mobile Viewport', 'passed', 'Đã tối ưu hiển thị di động.');
+    } else {
+      addAudit('Mobile Viewport', 'critical', 'Thiếu thẻ Viewport.', 'Thêm <meta name="viewport" content="width=device-width, initial-scale=1">.');
+    }
+
+    // --- PRO FEATURES ---
+
+    // Canonical (Pro)
+    const canonical = $('link[rel="canonical"]').attr('href');
+    if (canonical) {
+      addAudit('Canonical Tag', 'passed', `Đã thiết lập: ${canonical}`, '', true);
+    } else {
+      addAudit('Canonical Tag', 'warning', 'Thiếu thẻ Canonical.', 'Thêm <link rel="canonical" href="..." /> để tránh trùng lặp nội dung.', true);
+    }
+
+    // Heading Structure H2/H3 (Pro)
+    const h2 = $('h2').length;
+    const h3 = $('h3').length;
+    if (h2 > 0 || h3 > 0) {
+      addAudit('Cấu trúc Heading', 'passed', `Tìm thấy ${h2} thẻ H2 và ${h3} thẻ H3.`, '', true);
+    } else {
+      addAudit('Cấu trúc Heading', 'warning', 'Thiếu thẻ H2/H3.', 'Sử dụng H2, H3 để phân chia nội dung bài viết.', true);
+    }
+
+    // Robots.txt & Sitemap (Async Pro Checks)
+    const domain = new URL(url).origin;
+    
+    const checkRobots = axios.get(`${domain}/robots.txt`, { timeout: 3000 })
+      .then(() => addAudit('Robots.txt', 'passed', 'File robots.txt tồn tại.', '', true))
+      .catch(() => addAudit('Robots.txt', 'warning', 'Không tìm thấy robots.txt.', 'Tạo file robots.txt để hướng dẫn bot tìm kiếm.', true));
+
+    const checkSitemap = axios.get(`${domain}/sitemap.xml`, { timeout: 3000 })
+      .then(() => addAudit('Sitemap XML', 'passed', 'File sitemap.xml tồn tại.', '', true))
+      .catch(() => addAudit('Sitemap XML', 'warning', 'Không tìm thấy sitemap.xml.', 'Tạo sitemap.xml và khai báo trong Google Search Console.', true));
+
+    // Broken Links (Async Pro Check)
+    const links = [];
+    $('a').each((_, el) => {
+      const href = $(el).attr('href');
+      if (href && !href.startsWith('#') && !href.startsWith('javascript:') && !href.startsWith('mailto:') && !href.startsWith('tel:')) {
+        try {
+          const fullUrl = new URL(href, url).href;
+          if (fullUrl.startsWith('http')) links.push(fullUrl);
+        } catch (e) {}
+      }
+    });
+
+    const uniqueLinks = [...new Set(links)].slice(0, 10); // Check max 10 links
+    
+    const checkLinks = Promise.all(uniqueLinks.map(link => 
+      axios.get(link, { timeout: 3000, headers: { 'User-Agent': 'SEO-Audit-Bot' } })
+        .then(() => null)
+        .catch(err => {
+           if (err.response && err.response.status >= 400) return link;
+           return null;
+        })
+    )).then((results) => {
+      const brokenLinks = results.filter(l => l);
+      if (brokenLinks.length > 0) {
+        addAudit('Broken Links', 'warning', `Phát hiện ${brokenLinks.length} link lỗi: ${brokenLinks.join(', ')}`, 'Kiểm tra và sửa các liên kết 404.', true);
+      } else {
+        addAudit('Broken Links', 'passed', `Đã kiểm tra ${uniqueLinks.length} link mẫu: Không có lỗi.`, '', true);
+      }
+    });
+
+    // PageSpeed Insights (Async Pro Check)
+    const psiKey = process.env.GOOGLE_API_KEY ? `&key=${process.env.GOOGLE_API_KEY}` : '';
+    const checkPageSpeed = axios.get(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&category=PERFORMANCE&strategy=MOBILE${psiKey}`, { timeout: 25000 })
+      .then(response => {
+        const { lighthouseResult } = response.data;
+        const fcp = lighthouseResult.audits['first-contentful-paint'];
+        const lcp = lighthouseResult.audits['largest-contentful-paint'];
+        const score = lighthouseResult.categories.performance.score * 100;
+
+        addAudit('Performance (Mobile)', score >= 90 ? 'passed' : score >= 50 ? 'warning' : 'critical', `${Math.round(score)}/100`, 'Tối ưu tổng thể website theo đề xuất của Google.', true);
+        addAudit('FCP (First Contentful Paint)', fcp.score >= 0.9 ? 'passed' : fcp.score >= 0.5 ? 'warning' : 'critical', fcp.displayValue, 'Giảm thời gian phản hồi máy chủ và loại bỏ chặn hiển thị.', true);
+        addAudit('LCP (Largest Contentful Paint)', lcp.score >= 0.9 ? 'passed' : lcp.score >= 0.5 ? 'warning' : 'critical', lcp.displayValue, 'Tối ưu thời gian tải tài nguyên lớn nhất (ảnh/video).', true);
+      })
+      .catch(err => {
+        addAudit('PageSpeed Insights', 'warning', 'Không thể lấy dữ liệu LCP/FCP.', 'Đảm bảo Google Bot có thể truy cập website hoặc thử lại sau.', true);
+      });
+
+    await Promise.allSettled([checkRobots, checkSitemap, checkLinks, checkPageSpeed]);
 
     result.score = Math.max(0, result.score);
     return result;
