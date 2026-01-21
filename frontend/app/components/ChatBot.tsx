@@ -31,7 +31,7 @@ const ChatWindow = memo(({ messages, onSend, isLoading }: {
   };
 
   return (
-    <div className="fixed bottom-24 right-6 z-50 w-[350px] md:w-[400px] h-[500px] glass-card rounded-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300 border border-white/10 shadow-2xl backdrop-blur-xl bg-[#050505]/80">
+    <div className="fixed bottom-20 right-4 md:bottom-24 md:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[350px] md:w-[400px] h-[60vh] md:h-[500px] glass-card rounded-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300 border border-white/10 shadow-2xl backdrop-blur-xl bg-[#050505]/80">
       {/* Header */}
       <div className="p-4 bg-white/5 border-b border-white/10 flex items-center gap-3">
         <div className="p-2 bg-cyan-500/20 rounded-lg border border-cyan-500/30">
@@ -142,7 +142,7 @@ export default function ChatBot() {
       {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 z-50 p-4 rounded-full shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all duration-300 hover:scale-110 group ${
+        className={`fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50 p-3 md:p-4 rounded-full shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all duration-300 hover:scale-110 group ${
           isOpen ? 'bg-red-500 rotate-90' : 'bg-gradient-to-r from-cyan-500 to-blue-600'
         }`}
       >

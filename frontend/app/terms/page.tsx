@@ -1,0 +1,62 @@
+'use client';
+
+import Link from 'next/link';
+import { Activity, FileText } from 'lucide-react';
+
+export default function TermsPage() {
+  return (
+    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-cyan-500/30 flex flex-col relative overflow-hidden">
+      {/* Background Glow Effects */}
+      <div className="absolute top-0 left-1/2 w-[1000px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] -z-10 mix-blend-screen pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[800px] h-[600px] bg-purple-600/10 rounded-full blur-[100px] -z-10 mix-blend-screen pointer-events-none" />
+
+      <header className="bg-[#050505]/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 text-white font-bold text-xl tracking-tight">
+            <div className="p-1.5 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+              <Activity className="w-5 h-5 text-white" />
+            </div>
+            <span>SEO<span className="text-cyan-400">Audit</span></span>
+          </Link>
+          <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-400 items-center">
+            <Link href="/features" className="hover:text-cyan-400 transition-colors">Tính năng</Link>
+            <Link href="/pricing" className="hover:text-cyan-400 transition-colors">Bảng giá</Link>
+            <Link href="/" className="px-5 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-all hover:border-cyan-500/50 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+              Trang chủ
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      <main className="max-w-3xl mx-auto px-4 py-16 md:py-24 flex-grow w-full relative z-10">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="p-3 bg-cyan-500/10 rounded-2xl border border-cyan-500/20">
+            <FileText className="w-8 h-8 text-cyan-400" />
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white">
+            Điều khoản <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600">Sử dụng</span>
+          </h1>
+        </div>
+        
+        <div className="glass-card p-8 md:p-10 rounded-3xl border border-white/10 text-gray-300 leading-relaxed space-y-6 text-lg">
+          <p className="font-medium text-white">Khi sử dụng website này, bạn đồng ý tuân thủ các điều khoản sau:</p>
+          <ul className="list-decimal list-inside space-y-4 pl-2 marker:text-cyan-500 marker:font-bold">
+            <li>Website cung cấp các công cụ và thông tin phục vụ mục đích tham khảo.</li>
+            <li>Chúng tôi không chịu trách nhiệm cho các thiệt hại phát sinh từ việc sử dụng dữ liệu trên website.</li>
+            <li>Người dùng không được sử dụng website cho các mục đích vi phạm pháp luật.</li>
+            <li>Điều khoản có thể được thay đổi mà không cần thông báo trước.</li>
+          </ul>
+          <div className="pt-6 mt-6 border-t border-white/10 text-red-400 bg-red-500/5 p-4 rounded-xl border border-red-500/10">
+            Nếu bạn không đồng ý với bất kỳ điều khoản nào, vui lòng ngừng sử dụng website.
+          </div>
+        </div>
+      </main>
+
+      <footer className="bg-[#050505] border-t border-white/10 py-10 mt-auto relative z-10">
+        <div className="max-w-5xl mx-auto px-4 text-center">
+          <p className="text-gray-500 text-sm mb-6">© {new Date().getFullYear()} SEO Audit Tool. Built for the future.</p>
+        </div>
+      </footer>
+    </div>
+  );
+}

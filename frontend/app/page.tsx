@@ -17,6 +17,7 @@ import {
   Download,
   Lock,
   X,
+  Menu,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -65,6 +66,77 @@ const Typewriter = ({ text, className }: { text: string; className?: string }) =
   );
 };
 
+const FacebookIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+  </svg>
+);
+
+const TwitterIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-12.7 12.5 4 1.2 8.1-.3 9.1-1.4-.6.1-1.1-.7-1.2-1.8.3.3.6.3.9.1-1.3-.5-2-3-2-3 .2.1.4.1.4.1-.8-.2-1.3-1.8-1.1-2.2.6 1 2.3 1.6 4.1 1.7-.4-1.8 2-3.2 3.5-1.8.6-.2 1.2-.6 1.7-.9-.2.6-.6 1.1-1.1 1.4.6-.1 1.1-.3 1.6-.5-.5.6-1 1.1-1.5 1.5z" />
+  </svg>
+);
+
+const GithubIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+    <path d="M9 18c-4.51 2-5-2-7-2" />
+  </svg>
+);
+
+const LinkedinIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+    <rect width="4" height="12" x="2" y="9" />
+    <circle cx="4" cy="4" r="2" />
+  </svg>
+);
+
 /* ================= TYPES ================= */
 
 interface AuditResult {
@@ -101,6 +173,8 @@ function HomeContent() {
   const [compareSelection, setCompareSelection] = useState<string[]>([]);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [shake, setShake] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   const searchParams = useSearchParams();
@@ -161,6 +235,18 @@ function HomeContent() {
       fetchHistory();
     }
   }, [API_URL, session, result]); // Cập nhật khi có kết quả mới
+
+  // Prevent scrolling when mobile menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
 
   /* ================= SOUND EFFECTS ================= */
 
@@ -316,9 +402,14 @@ function HomeContent() {
   /* ================= LOGOUT ================= */
 
   const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const performLogout = () => {
     if (session?.user?.email) localStorage.removeItem(`isPro_${session.user.email}`);
     setIsPro(false);
     signOut();
+    setShowLogoutConfirm(false);
   };
 
   /* ================= PDF EXPORT ================= */
@@ -574,13 +665,13 @@ function HomeContent() {
             </div>
             <span>SEO<span className="text-cyan-400">Audit</span></span>
           </div>
-          <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-400 items-center">
-            <Link href="/features" className="hover:text-cyan-400 transition-colors">Tính năng</Link>
-            <Link href="/pricing" className="hover:text-cyan-400 transition-colors">Bảng giá</Link>
+          <nav className="flex gap-4 md:gap-8 text-sm font-medium text-gray-400 items-center">
+            <Link href="/features" className="hidden md:block hover:text-cyan-400 transition-colors">Tính năng</Link>
+            <Link href="/pricing" className="hidden md:block hover:text-cyan-400 transition-colors">Bảng giá</Link>
             {status === 'loading' ? (
-              <span className="text-gray-600">...</span>
+              <span className="text-gray-600 hidden md:inline">...</span>
             ) : session ? (
-              <div className="flex items-center gap-3 pl-4 border-l border-white/10">
+              <div className="hidden md:flex items-center gap-2 md:gap-3 pl-0 md:pl-4 md:border-l border-white/10">
                 {session.user?.image && (
                   <Image 
                     src={session.user.image} 
@@ -591,17 +682,109 @@ function HomeContent() {
                     priority
                   />
                 )}
-                <span className="text-gray-200 font-semibold">{session.user?.name}</span>
-                <button onClick={handleLogout} className="text-red-400 hover:text-red-300 transition-colors ml-2 text-xs uppercase tracking-wider font-bold">
+                <span className="hidden md:inline text-gray-200 font-semibold">{session.user?.name}</span>
+                <button onClick={handleLogout} className="text-red-400 hover:text-red-300 transition-colors ml-1 md:ml-2 text-xs uppercase tracking-wider font-bold">
                   Thoát
                 </button>
               </div>
             ) : (
-              <button onClick={() => signIn('google')} className="px-5 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-all hover:border-cyan-500/50 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+              <button onClick={() => signIn('google')} className="hidden md:block px-4 py-2 md:px-5 md:py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-all hover:border-cyan-500/50 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)] text-xs md:text-sm">
                 Đăng nhập
               </button>
             )}
+            <button 
+              className="md:hidden p-2 -mr-2 text-gray-400 hover:text-white transition-colors relative z-[101]"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              <div className="relative w-6 h-6">
+                <Menu 
+                  className={`w-6 h-6 absolute top-0 left-0 transition-all duration-300 transform ${
+                    isMobileMenuOpen ? 'opacity-0 rotate-90 scale-50' : 'opacity-100 rotate-0 scale-100'
+                  }`} 
+                />
+                <X 
+                  className={`w-6 h-6 absolute top-0 left-0 transition-all duration-300 transform ${
+                    isMobileMenuOpen ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-50'
+                  }`} 
+                />
+              </div>
+            </button>
           </nav>
+        </div>
+
+        {/* Mobile Menu Overlay */}
+        {/* Backdrop */}
+        <div 
+          className={`fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm md:hidden transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+
+        <div className={`fixed inset-y-0 right-0 z-[100] w-[80%] max-w-sm bg-[#050505] border-l border-white/10 md:hidden transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className="px-4 h-16 flex items-center justify-between border-b border-white/10">
+              <div className="flex items-center gap-2 text-white font-bold text-xl tracking-tight">
+                <div className="p-1.5 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+                  <Activity className="w-5 h-5 text-white" />
+                </div>
+                <span>SEO<span className="text-cyan-400">Audit</span></span>
+              </div>
+            </div>
+            <div className="p-6 flex flex-col gap-6 text-lg font-medium text-gray-300">
+              <Link 
+                href="/features" 
+                onClick={() => setIsMobileMenuOpen(false)} 
+                className={`hover:text-cyan-400 transition-all duration-500 ease-out transform ${isMobileMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'}`}
+                style={{ transitionDelay: isMobileMenuOpen ? '100ms' : '0ms' }}
+              >
+                Tính năng
+              </Link>
+              <Link 
+                href="/pricing" 
+                onClick={() => setIsMobileMenuOpen(false)} 
+                className={`hover:text-cyan-400 transition-all duration-500 ease-out transform ${isMobileMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'}`}
+                style={{ transitionDelay: isMobileMenuOpen ? '200ms' : '0ms' }}
+              >
+                Bảng giá
+              </Link>
+
+              {/* User Profile & Logout Section */}
+              <div 
+                className={`pt-6 border-t border-white/10 flex flex-col gap-4 transition-all duration-500 ease-out transform ${isMobileMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'}`}
+                style={{ transitionDelay: isMobileMenuOpen ? '300ms' : '0ms' }}
+              >
+                {session ? (
+                  <>
+                    <div className="flex items-center gap-3">
+                      {session.user?.image && (
+                        <Image 
+                          src={session.user.image} 
+                          alt={session.user.name || 'Avatar'} 
+                          width={40}
+                          height={40}
+                          className="rounded-full border border-white/10 ring-2 ring-black"
+                        />
+                      )}
+                      <div className="flex flex-col">
+                        <span className="text-white font-bold text-base">{session.user?.name}</span>
+                        <span className="text-xs text-gray-500">{session.user?.email}</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
+                      className="w-full py-3 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all font-bold flex items-center justify-center gap-2"
+                    >
+                      Đăng xuất
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    onClick={() => { signIn('google'); setIsMobileMenuOpen(false); }}
+                    className="w-full py-3 rounded-xl bg-white/5 text-white border border-white/10 hover:bg-white/10 hover:border-cyan-500/50 transition-all font-bold"
+                  >
+                    Đăng nhập
+                  </button>
+                )}
+              </div>
+            </div>
         </div>
       </header>
 
@@ -907,11 +1090,28 @@ function HomeContent() {
              <Activity className="w-6 h-6 text-cyan-500" />
              <span className="font-bold text-white text-xl">SEO<span className="text-cyan-500">Audit</span></span>
           </div>
+          
+          {/* Social Links */}
+          <div className="flex justify-center gap-6 mb-8">
+            <a href="https://www.facebook.com/eouaen/?locale=vi_VN" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-blue-500 transition-all hover:scale-110">
+              <FacebookIcon className="w-5 h-5" />
+            </a>
+            <a href="#" className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-sky-400 transition-all hover:scale-110">
+              <TwitterIcon className="w-5 h-5" />
+            </a>
+            <a href="https://github.com/Luanhai3" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all hover:scale-110">
+              <GithubIcon className="w-5 h-5" />
+            </a>
+            <a href="https://www.linkedin.com/in/lu%C3%A2n-ho%C3%A0ng-34bb122bb/" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-blue-600 transition-all hover:scale-110">
+              <LinkedinIcon className="w-5 h-5" />
+            </a>
+          </div>
+
           <p className="text-gray-500 text-sm mb-6">© {new Date().getFullYear()} SEO Audit Tool. Built for the future.</p>
           <div className="flex justify-center gap-8 text-sm font-medium text-gray-400">
-            <a href="#" className="hover:text-cyan-400 transition-colors">Điều khoản</a>
-            <a href="#" className="hover:text-cyan-400 transition-colors">Bảo mật</a>
-            <a href="#" className="hover:text-cyan-400 transition-colors">Liên hệ</a>
+            <Link href="/terms" className="hover:text-cyan-400 transition-colors">Điều khoản</Link>
+            <Link href="/privacy" className="hover:text-cyan-400 transition-colors">Bảo mật</Link>
+            <Link href="/contact" className="hover:text-cyan-400 transition-colors">Liên hệ</Link>
           </div>
         </div>
       </footer>
@@ -1020,6 +1220,33 @@ function HomeContent() {
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LOGOUT CONFIRMATION MODAL */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[110]">
+          <div className="glass-card p-6 rounded-3xl text-center shadow-2xl max-w-sm w-full border border-white/10 animate-in fade-in zoom-in duration-200">
+            <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Xác nhận đăng xuất</h3>
+            <p className="text-gray-400 mb-6">Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium transition-colors border border-white/10"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={performLogout}
+                className="flex-1 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold transition-colors shadow-lg shadow-red-500/20"
+              >
+                Đăng xuất
+              </button>
             </div>
           </div>
         </div>
