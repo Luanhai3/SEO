@@ -6,32 +6,37 @@ const { SePayPgClient } = require('sepay-pg-node');
 const { analyzeSEO } = require('./analyzer');
 const cron = require('node-cron');
 const nodemailer = require('nodemailer');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- DATABASE GIẢ LẬP (Lưu trong RAM) ---
-// Lưu ý: Dữ liệu sẽ mất khi Server khởi động lại (Deploy mới).
+/* =======================
+   DATABASE GIẢ LẬP (RAM)
+======================= */
 const transactions = [];
-
-// --- LỊCH SỬ AUDIT (Lưu trong RAM) ---
 const auditHistory = [];
 
-// Route trang chủ để kiểm tra server sống hay chết
+/* =======================
+   HEALTH CHECK
+======================= */
 app.get('/', (req, res) => {
   res.send('✅ SEO Audit Backend is running!');
 });
 
-// Cấu hình Client (Lấy từ trang quản trị SePay)
+/* =======================
+   SEPAY CONFIG
+======================= */
 const sepayClient = new SePayPgClient({
   env: process.env.SEPAY_ENV || 'sandbox',
   merchant_id: process.env.SEPAY_MERCHANT_ID,
   secret_key: process.env.SEPAY_SECRET_KEY
 });
 
-// --- EMAIL CONFIGURATION ---
+/* =======================
+   EMAIL CONFIG
+======================= */
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -40,211 +45,172 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// --- CRON JOB: Gửi báo cáo hàng tuần (9:00 AM Thứ 2) ---
-// Cú pháp Cron: Phút Giờ Ngày Tháng Thứ (0-6, 0 là CN)
+/* =======================
+   CRON: WEEKLY REPORT
+======================= */
 cron.schedule('0 9 * * 1', async () => {
-  console.log('⏳ Bắt đầu gửi báo cáo tuần...');
-  
-  // 1. Lấy danh sách email duy nhất từ lịch sử (RAM)
-  // Lưu ý: Trong thực tế nên lấy từ Database thật
+  console.log('⏳ Weekly SEO report cron started');
+
   const uniqueEmails = [...new Set(auditHistory.map(h => h.email))];
 
   for (const email of uniqueEmails) {
-    // Lấy audit mới nhất của user này để gửi báo cáo
     const latestAudit = auditHistory
       .filter(h => h.email === email)
       .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
 
     if (!latestAudit) continue;
 
-    // Nội dung email HTML
-    const mailOptions = {
-      from: '"SEO Audit Tool" <no-reply@seotool.com>',
-      to: email,
-      subject: `📊 Báo cáo SEO tuần này cho ${latestAudit.url}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2563eb;">Báo cáo SEO Định Kỳ</h2>
-          <p>Xin chào,</p>
-          <p>Dưới đây là trạng thái mới nhất của website <b>${latestAudit.url}</b>:</p>
-          
-          <div style="background: #f3f4f6; padding: 20px; border-radius: 10px; text-align: center; margin: 20px 0;">
-            <div style="font-size: 48px; font-weight: bold; color: ${latestAudit.score >= 80 ? '#22c55e' : latestAudit.score >= 50 ? '#eab308' : '#ef4444'}">${latestAudit.score}/100</div>
-            <div style="color: #6b7280;">Điểm số hiện tại</div>
-          </div>
-
-          <ul>
-            <li>✅ <b>Đạt chuẩn:</b> ${latestAudit.summary.passed} tiêu chí</li>
-            <li>⚠️ <b>Cảnh báo:</b> ${latestAudit.summary.warning} tiêu chí</li>
-            <li>❌ <b>Nghiêm trọng:</b> ${latestAudit.summary.critical} tiêu chí</li>
-          </ul>
-
-          <p>Truy cập <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}" style="color: #2563eb; font-weight: bold;">SEO Audit Tool</a> để xem chi tiết và cách khắc phục.</p>
-          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="font-size: 12px; color: #9ca3af;">Bạn nhận được email này vì đã sử dụng dịch vụ của chúng tôi.</p>
-        </div>
-      `
-    };
-
     try {
-      await transporter.sendMail(mailOptions);
-      console.log(`✅ Đã gửi email cho ${email}`);
-    } catch (error) {
-      console.error(`❌ Lỗi gửi email cho ${email}:`, error);
+      await transporter.sendMail({
+        from: '"SEO Audit Tool" <no-reply@seotool.com>',
+        to: email,
+        subject: `📊 Báo cáo SEO tuần này cho ${latestAudit.url}`,
+        html: `
+          <h2>Báo cáo SEO</h2>
+          <p>Website: <b>${latestAudit.url}</b></p>
+          <p>Điểm số: <b>${latestAudit.score}/100</b></p>
+        `
+      });
+
+      console.log(`✅ Email sent to ${email}`);
+    } catch (err) {
+      console.error(`❌ Email error (${email}):`, err.message);
     }
   }
 });
 
-// API tạo giao dịch thanh toán
+/* =======================
+   PAYMENT APIs
+======================= */
 app.post('/api/create-payment', (req, res) => {
   const { amount, orderDescription } = req.body;
-  
-  // Tạo mã đơn hàng duy nhất
-  const orderId = `DH-${Date.now()}`; 
 
-  const checkoutURL = sepayClient.checkout.initCheckoutUrl();
-  
-  const checkoutFormfields = sepayClient.checkout.initOneTimePaymentFields({
-    payment_method: 'BANK_TRANSFER', // Hoặc 'ATM_CARD', 'CREDIT_CARD'
-    order_invoice_number: orderId,
-    order_amount: amount,
-    currency: 'VND',
-    order_description: orderDescription,
-    success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}?payment=success`,
-    error_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}?payment=error`,
-    cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}?payment=cancel`,
-  });
+  const orderId = `DH-${Date.now()}`;
 
-  // Trả về cho Frontend để render form
-  res.json({ checkoutUrl: checkoutURL, checkoutFormfields });
+  const checkoutUrl = sepayClient.checkout.initCheckoutUrl();
+  const checkoutFormfields =
+    sepayClient.checkout.initOneTimePaymentFields({
+      payment_method: 'BANK_TRANSFER',
+      order_invoice_number: orderId,
+      order_amount: amount,
+      currency: 'VND',
+      order_description: orderDescription,
+      success_url: `${process.env.FRONTEND_URL}?payment=success`,
+      cancel_url: `${process.env.FRONTEND_URL}?payment=cancel`,
+      error_url: `${process.env.FRONTEND_URL}?payment=error`
+    });
+
+  res.json({ checkoutUrl, checkoutFormfields });
 });
 
-// API Webhook nhận thông báo giao dịch từ SePay
 app.post('/api/sepay-webhook', (req, res) => {
   try {
-    // --- BẢO MẬT: Xác thực Webhook ---
-    // SePay gửi kèm header Authorization: Bearer <API_KEY>
-    // Ta cần kiểm tra token này có khớp với key của mình không
-    const sepayApiKey = process.env.SEPAY_API_KEY || process.env.SEPAY_SECRET_KEY;
-    const authHeader = req.headers['authorization'];
+    const apiKey = process.env.SEPAY_API_KEY || process.env.SEPAY_SECRET_KEY;
+    const auth = req.headers.authorization;
 
-    if (!authHeader || authHeader !== `Bearer ${sepayApiKey}`) {
-      console.warn(`⚠️ Cảnh báo: Request không hợp lệ từ IP ${req.ip}`);
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    if (auth !== `Bearer ${apiKey}`) {
+      return res.status(401).json({ success: false });
     }
 
-    // SePay gửi dữ liệu giao dịch qua body
     const { transferAmount, transferContent, referenceCode } = req.body;
-    
-    console.log(`💰 Webhook nhận tiền: ${transferAmount} VND - Nội dung: ${transferContent}`);
 
-    // LƯU VÀO DATABASE GIẢ LẬP
-    const newTransaction = {
+    transactions.unshift({
       referenceCode,
       amount: transferAmount,
       content: transferContent,
-      date: new Date().toLocaleString('vi-VN')
-    };
-    transactions.unshift(newTransaction); // Thêm vào đầu danh sách
-    
-    return res.json({ success: true, message: 'Webhook received' });
-  } catch (error) {
-    console.error('Webhook Error:', error);
-    return res.status(500).json({ success: false });
+      date: new Date().toISOString()
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Webhook error:', err);
+    res.status(500).json({ success: false });
   }
 });
 
-// API xem danh sách giao dịch (Dùng để kiểm tra nhanh)
+/* =======================
+   ADMIN / USER APIs
+======================= */
 app.get('/api/transactions', (req, res) => {
-  // Bảo mật bằng Admin Secret (Lấy từ biến môi trường)
-  const adminSecret = process.env.ADMIN_SECRET;
-  const clientSecret = req.headers['x-admin-secret'] || req.query.key;
-
-  if (!adminSecret || clientSecret !== adminSecret) {
-    return res.status(401).json({ error: 'Unauthorized: Sai hoặc thiếu Admin Key' });
+  if (req.headers['x-admin-secret'] !== process.env.ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
-  
-  res.json({ total: transactions.length, data: transactions });
+  res.json(transactions);
 });
 
-// API kiểm tra trạng thái PRO của user
 app.get('/api/check-pro/:userId', (req, res) => {
-  const { userId } = req.params;
-  // Kiểm tra xem có giao dịch nào chứa userId và đủ tiền không
-  const isPro = transactions.some(t => 
-    t.content && 
-    t.content.includes(userId) && 
-    t.amount >= 50000
+  const isPro = transactions.some(
+    t => t.content?.includes(req.params.userId) && t.amount >= 50000
   );
   res.json({ isPro });
 });
 
-// API lấy lịch sử audit của user
 app.get('/api/history/:email', (req, res) => {
-  const { email } = req.params;
-  // Lấy 10 lần check gần nhất của email này
   const history = auditHistory
-    .filter(h => h.email === email)
-    .slice(-10); // Lấy 10 cái cuối
+    .filter(h => h.email === req.params.email)
+    .slice(-10);
   res.json(history);
 });
 
+/* =======================
+   SEO ANALYZE
+======================= */
 app.post('/api/analyze', async (req, res) => {
-  const { url, email } = req.body;
-  if (!url) return res.status(400).json({ error: 'Thiếu URL' });
-  
-  console.log('Analyzing:', url);
-  const result = await analyzeSEO(url);
-  
-  if (result.error) return res.status(500).json(result);
+  try {
+    const { url, email } = req.body;
+    if (!url) return res.status(400).json({ error: 'Missing URL' });
 
-  // Lưu lịch sử nếu có email
-  if (email) {
-    auditHistory.push({
-      id: Date.now().toString(), // Thêm ID để định danh
-      email,
-      ...result, // Lưu toàn bộ kết quả (bao gồm audits, summary...)
-      date: new Date()
-    });
+    const result = await analyzeSEO(url);
+    if (result.error) return res.status(500).json(result);
+
+    if (email) {
+      auditHistory.push({
+        id: Date.now().toString(),
+        email,
+        ...result,
+        date: new Date()
+      });
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('Analyze error:', err);
+    res.status(500).json({ error: 'Analyze failed' });
   }
-
-  res.json(result);
 });
 
-// API Chatbot (Giả lập AI)
+/* =======================
+   GEMINI CHATBOT (FIXED)
+======================= */
 app.post('/api/chat', async (req, res) => {
-  const { message } = req.body;
-
-  // Nếu chưa cấu hình Key thì dùng câu trả lời mặc định
   if (!process.env.GEMINI_API_KEY) {
-    return res.json({ reply: "Hệ thống AI đang bảo trì (Thiếu API Key). Vui lòng thử lại sau." });
+    return res.json({ reply: 'AI chưa được cấu hình.' });
   }
 
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    // Sử dụng model gemini-1.5-flash cho tốc độ phản hồi nhanh nhất
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const prompt = `
-      Bạn là trợ lý AI chuyên nghiệp của "SEO Audit Tool".
-      Nhiệm vụ: Hỗ trợ người dùng về kiến thức SEO, giải thích lỗi kỹ thuật website và hướng dẫn sử dụng công cụ.
-      Phong cách: Thân thiện, ngắn gọn, chuyên gia.
-      Thông tin sản phẩm: Gói Free (0đ), Gói PRO (50k/tháng - có xuất PDF, lịch sử, email báo cáo).
-      Câu hỏi của người dùng: "${message}"
-    `;
+    // MODEL CHUẨN – KHÔNG 404
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-pro'
+    });
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const result = await model.generateContent(req.body.message);
+    const text = result.response.text();
 
     res.json({ reply: text });
-  } catch (error) {
-    console.error("Gemini Error:", error);
-    res.json({ reply: "Xin lỗi, tôi đang gặp chút sự cố kết nối với bộ não AI. Bạn hỏi lại sau nhé!" });
+  } catch (err) {
+    console.error('Gemini Error:', err.message);
+    res.json({
+      reply: 'AI đang quá tải hoặc lỗi kết nối. Bạn thử lại sau nhé.'
+    });
   }
 });
 
+/* =======================
+   START SERVER
+======================= */
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log("Backend running on port " + PORT);
+  console.log(`🚀 Backend running on port ${PORT}`);
 });
