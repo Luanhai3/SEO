@@ -16,6 +16,6 @@
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.9",
     "sepay-pg-node": "^1.0.0",
-    "@google/generative-ai": "^0.13.0"
+    "@google/generative-ai": "^0.21.0"
   }
 }
