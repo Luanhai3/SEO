@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Activity, FileText } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import Footer from '../components/Footer';
+import Header from '../components/Header';
 
 export default function TermsPage() {
   return (
@@ -11,23 +12,7 @@ export default function TermsPage() {
       <div className="absolute top-0 left-1/2 w-[1000px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] -z-10 mix-blend-screen pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-[800px] h-[600px] bg-purple-600/10 rounded-full blur-[100px] -z-10 mix-blend-screen pointer-events-none" />
 
-      <header className="bg-[#050505]/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-white font-bold text-xl tracking-tight">
-            <div className="p-1.5 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.5)]">
-              <Activity className="w-5 h-5 text-white" />
-            </div>
-            <span>SEO<span className="text-cyan-400">Audit</span></span>
-          </Link>
-          <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-400 items-center">
-            <Link href="/features" className="hover:text-cyan-400 transition-colors">Tính năng</Link>
-            <Link href="/pricing" className="hover:text-cyan-400 transition-colors">Bảng giá</Link>
-            <Link href="/" className="px-5 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-all hover:border-cyan-500/50 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-              Trang chủ
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       <main className="max-w-3xl mx-auto px-4 py-16 md:py-24 flex-grow w-full relative z-10">
         <div className="flex items-center gap-4 mb-8">
