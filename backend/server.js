@@ -7,8 +7,10 @@ const { analyzeSEO } = require('./analyzer');
 const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
+app.set('trust proxy', 1); // Cần thiết khi deploy trên Render để nhận diện đúng IP
 app.use(cors());
 app.use(express.json());
 
@@ -182,21 +184,50 @@ app.post('/api/analyze', async (req, res) => {
 /* =======================
    GEMINI CHATBOT (FIXED)
 ======================= */
-app.post('/api/chat', async (req, res) => {
+// Rate Limiter: 10 requests per minute per IP
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { reply: "Bạn đang gửi tin nhắn quá nhanh. Vui lòng thử lại sau 1 phút." }
+});
+
+app.post('/api/chat', chatLimiter, async (req, res) => {
   if (!process.env.GEMINI_API_KEY) {
     return res.json({ reply: 'AI chưa được cấu hình.' });
   }
 
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const { message } = req.body;
 
-    // MODEL CHUẨN – KHÔNG 404
+    // Sử dụng model gemini-1.5-flash (nhanh và tiết kiệm chi phí)
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-pro'
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        maxOutputTokens: 500,
+        temperature: 0.7,
+      }
     });
 
-    const result = await model.generateContent(req.body.message);
-    const text = result.response.text();
+    // Khởi tạo chat với ngữ cảnh (Persona)
+    const chat = model.startChat({
+      history: [
+        {
+          role: "user",
+          parts: [{ text: "Bạn là trợ lý ảo chuyên gia về SEO (Search Engine Optimization) của 'SEO Audit Tool'. Hãy trả lời các câu hỏi về SEO, Marketing, và tối ưu website bằng tiếng Việt một cách chuyên nghiệp, ngắn gọn, dễ hiểu. Nếu câu hỏi không liên quan đến SEO hoặc Web, hãy từ chối khéo." }],
+        },
+        {
+          role: "model",
+          parts: [{ text: "Xin chào! Tôi là trợ lý AI của SEO Audit Tool. Tôi sẵn sàng giải đáp mọi thắc mắc về tối ưu hóa website và thứ hạng tìm kiếm của bạn." }],
+        },
+      ],
+    });
+
+    const result = await chat.sendMessage(message);
+    const response = await result.response;
+    const text = response.text();
 
     res.json({ reply: text });
   } catch (err) {
