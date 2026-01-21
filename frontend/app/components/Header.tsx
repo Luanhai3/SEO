@@ -69,7 +69,7 @@ export default function Header() {
                 </button>
               </div>
             ) : (
-              <button onClick={() => signIn('google')} className="hidden md:block px-4 py-2 md:px-5 md:py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-all hover:border-cyan-500/50 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)] text-xs md:text-sm">
+              <button onClick={() => signIn()} className="hidden md:block px-4 py-2 md:px-5 md:py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-all hover:border-cyan-500/50 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)] text-xs md:text-sm">
                 Đăng nhập
               </button>
             )}
@@ -167,7 +167,7 @@ export default function Header() {
                   </>
                 ) : (
                   <button 
-                    onClick={() => { signIn('google'); setIsMobileMenuOpen(false); }}
+                onClick={() => { signIn(); setIsMobileMenuOpen(false); }}
                     className="w-full py-3 rounded-xl bg-white/5 text-white border border-white/10 hover:bg-white/10 hover:border-cyan-500/50 transition-all font-bold"
                   >
                     Đăng nhập

@@ -2,15 +2,18 @@
 
 import { useState, useRef, useEffect, memo } from 'react';
 import { MessageCircle, X, Send, Bot, User, Sparkles } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import Image from 'next/image';
 
 // Di chuyển hằng số ra ngoài để tránh khởi tạo lại mỗi lần render
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://seo-audit-backend-ebvj.onrender.com').replace(/\/$/, '');
 
 // Tách ChatWindow thành component riêng và dùng memo để tối ưu render
-const ChatWindow = memo(({ messages, onSend, isLoading }: { 
+const ChatWindow = memo(({ messages, onSend, isLoading, userImage }: { 
   messages: { role: 'user' | 'bot'; content: string }[], 
   onSend: (msg: string) => void, 
-  isLoading: boolean 
+  isLoading: boolean,
+  userImage?: string | null
 }) => {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -31,35 +34,41 @@ const ChatWindow = memo(({ messages, onSend, isLoading }: {
   };
 
   return (
-    <div className="fixed bottom-20 right-4 md:bottom-24 md:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[350px] md:w-[400px] h-[60vh] md:h-[500px] glass-card rounded-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300 border border-white/10 shadow-2xl backdrop-blur-xl bg-[#050505]/80">
+    <div className="fixed bottom-20 right-4 md:bottom-24 md:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[350px] md:w-[400px] h-[60vh] md:h-[500px] glass-card rounded-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300 border border-gray-200 dark:border-white/10 shadow-2xl backdrop-blur-xl bg-white/80 dark:bg-[#050505]/80">
       {/* Header */}
-      <div className="p-4 bg-white/5 border-b border-white/10 flex items-center gap-3">
-        <div className="p-2 bg-cyan-500/20 rounded-lg border border-cyan-500/30">
-          <Bot className="w-5 h-5 text-cyan-400" />
+      <div className="p-4 bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/10 flex items-center gap-3">
+        <div className="p-2 bg-cyan-100 dark:bg-cyan-500/20 rounded-lg border border-cyan-200 dark:border-cyan-500/30">
+          <Bot className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
         </div>
         <div>
-          <h3 className="font-bold text-white flex items-center gap-2">
-            AI Assistant <Sparkles className="w-3 h-3 text-yellow-400" />
+          <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            AI Assistant <Sparkles className="w-3 h-3 text-yellow-500 dark:text-yellow-400" />
           </h3>
-          <p className="text-xs text-green-400 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" /> Online
+          <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-green-500 dark:bg-green-400 rounded-full animate-pulse" /> Online
           </p>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-white/10 scrollbar-track-transparent">
         {messages.map((msg, idx) => (
           <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border border-white/10 ${
-              msg.role === 'user' ? 'bg-purple-500/20' : 'bg-cyan-500/20'
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border border-gray-200 dark:border-white/10 overflow-hidden ${
+              msg.role === 'user' ? 'bg-purple-100 dark:bg-purple-500/20' : 'bg-cyan-100 dark:bg-cyan-500/20'
             }`}>
-              {msg.role === 'user' ? <User className="w-4 h-4 text-purple-400" /> : <Bot className="w-4 h-4 text-cyan-400" />}
+              {msg.role === 'user' ? (
+                userImage ? (
+                  <Image src={userImage} alt="User" width={32} height={32} className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                )
+              ) : <Bot className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />}
             </div>
             <div className={`max-w-[80%] p-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
               msg.role === 'user' 
-                ? 'bg-purple-600/20 border border-purple-500/30 text-purple-100 rounded-tr-none' 
-                : 'bg-white/5 border border-white/10 text-gray-200 rounded-tl-none'
+                ? 'bg-purple-100 dark:bg-purple-600/20 border border-purple-200 dark:border-purple-500/30 text-purple-900 dark:text-purple-100 rounded-tr-none' 
+                : 'bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-800 dark:text-gray-200 rounded-tl-none'
             }`}>
               {msg.content}
             </div>
@@ -67,13 +76,13 @@ const ChatWindow = memo(({ messages, onSend, isLoading }: {
         ))}
         {isLoading && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center shrink-0 border border-white/10">
-              <Bot className="w-4 h-4 text-cyan-400" />
+            <div className="w-8 h-8 rounded-full bg-cyan-100 dark:bg-cyan-500/20 flex items-center justify-center shrink-0 border border-gray-200 dark:border-white/10">
+              <Bot className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
             </div>
-            <div className="bg-white/5 border border-white/10 p-3 rounded-2xl rounded-tl-none flex gap-1 items-center">
-              <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-              <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-              <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+            <div className="bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-3 rounded-2xl rounded-tl-none flex gap-1 items-center">
+              <span className="w-1.5 h-1.5 bg-cyan-500 dark:bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+              <span className="w-1.5 h-1.5 bg-cyan-500 dark:bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+              <span className="w-1.5 h-1.5 bg-cyan-500 dark:bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
             </div>
           </div>
         )}
@@ -81,7 +90,7 @@ const ChatWindow = memo(({ messages, onSend, isLoading }: {
       </div>
 
       {/* Input */}
-      <div className="p-4 bg-white/5 border-t border-white/10">
+      <div className="p-4 bg-gray-50 dark:bg-white/5 border-t border-gray-200 dark:border-white/10">
         <form 
           onSubmit={handleSubmit}
           className="flex gap-2"
@@ -90,7 +99,7 @@ const ChatWindow = memo(({ messages, onSend, isLoading }: {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Hỏi gì đó..."
-            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all placeholder:text-gray-600"
+            className="flex-1 bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
           />
           <button 
             type="submit"
@@ -108,6 +117,7 @@ const ChatWindow = memo(({ messages, onSend, isLoading }: {
 ChatWindow.displayName = 'ChatWindow';
 
 export default function ChatBot() {
+  const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: 'user' | 'bot'; content: string }[]>([
     { role: 'bot', content: 'Xin chào! Tôi là trợ lý AI của SEO Audit Tool. Tôi có thể giúp gì cho bạn?' }
@@ -158,6 +168,7 @@ export default function ChatBot() {
           messages={messages} 
           onSend={handleSend} 
           isLoading={isLoading} 
+          userImage={session?.user?.image}
         />
       )}
     </>

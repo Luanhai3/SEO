@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Activity } from 'lucide-react';
+import { Activity, ArrowUp } from 'lucide-react';
 
 const FacebookIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -66,6 +66,13 @@ export default function Footer() {
               <Link href="/terms" className="hover:text-cyan-400">Điều khoản</Link>
               <Link href="/privacy" className="hover:text-cyan-400">Bảo mật</Link>
               <Link href="/contact" className="hover:text-cyan-400">Liên hệ</Link>
+              <button 
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="flex items-center gap-1 hover:text-cyan-400 transition-colors ml-4 pl-4 border-l border-white/10"
+              >
+                Lên đầu trang
+                <ArrowUp className="w-3 h-3" />
+              </button>
             </nav>
 
             <p className="text-xs text-gray-600">

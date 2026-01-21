@@ -8,6 +8,9 @@ const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const rateLimit = require('express-rate-limit');
+const mongoose = require('mongoose');
+const Transaction = require('./models/Transaction');
+const AuditLog = require('./models/AuditLog');
 
 const app = express();
 app.set('trust proxy', 1); // Cần thiết khi deploy trên Render để nhận diện đúng IP
@@ -15,10 +18,11 @@ app.use(cors());
 app.use(express.json());
 
 /* =======================
-   DATABASE GIẢ LẬP (RAM)
+   MONGODB CONNECTION
 ======================= */
-const transactions = [];
-const auditHistory = [];
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('✅ Connected to MongoDB'))
+  .catch(err => console.error('❌ MongoDB connection error:', err));
 
 /* =======================
    HEALTH CHECK
@@ -53,12 +57,10 @@ const transporter = nodemailer.createTransport({
 cron.schedule('0 9 * * 1', async () => {
   console.log('⏳ Weekly SEO report cron started');
 
-  const uniqueEmails = [...new Set(auditHistory.map(h => h.email))];
+  const uniqueEmails = await AuditLog.distinct('email');
 
   for (const email of uniqueEmails) {
-    const latestAudit = auditHistory
-      .filter(h => h.email === email)
-      .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    const latestAudit = await AuditLog.findOne({ email }).sort({ date: -1 });
 
     if (!latestAudit) continue;
 
@@ -105,7 +107,7 @@ app.post('/api/create-payment', (req, res) => {
   res.json({ checkoutUrl, checkoutFormfields });
 });
 
-app.post('/api/sepay-webhook', (req, res) => {
+app.post('/api/sepay-webhook', async (req, res) => {
   try {
     const apiKey = process.env.SEPAY_API_KEY || process.env.SEPAY_SECRET_KEY;
     const auth = req.headers.authorization;
@@ -116,11 +118,11 @@ app.post('/api/sepay-webhook', (req, res) => {
 
     const { transferAmount, transferContent, referenceCode } = req.body;
 
-    transactions.unshift({
+    await Transaction.create({
       referenceCode,
       amount: transferAmount,
       content: transferContent,
-      date: new Date().toISOString()
+      date: new Date()
     });
 
     res.json({ success: true });
@@ -166,10 +168,12 @@ app.post('/api/analyze', async (req, res) => {
     if (result.error) return res.status(500).json(result);
 
     if (email) {
-      auditHistory.push({
-        id: Date.now().toString(),
+      await AuditLog.create({
         email,
-        ...result,
+        url: result.url,
+        score: result.score,
+        summary: result.summary,
+        audits: result.audits,
         date: new Date()
       });
     }
