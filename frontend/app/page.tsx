@@ -23,6 +23,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import confetti from 'canvas-confetti';
+import Footer from './components/Footer';
 
 /* ================= COMPONENTS ================= */
 
@@ -65,77 +66,6 @@ const Typewriter = ({ text, className }: { text: string; className?: string }) =
     </span>
   );
 };
-
-const FacebookIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-  </svg>
-);
-
-const TwitterIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-12.7 12.5 4 1.2 8.1-.3 9.1-1.4-.6.1-1.1-.7-1.2-1.8.3.3.6.3.9.1-1.3-.5-2-3-2-3 .2.1.4.1.4.1-.8-.2-1.3-1.8-1.1-2.2.6 1 2.3 1.6 4.1 1.7-.4-1.8 2-3.2 3.5-1.8.6-.2 1.2-.6 1.7-.9-.2.6-.6 1.1-1.1 1.4.6-.1 1.1-.3 1.6-.5-.5.6-1 1.1-1.5 1.5z" />
-  </svg>
-);
-
-const GithubIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
-    <path d="M9 18c-4.51 2-5-2-7-2" />
-  </svg>
-);
-
-const LinkedinIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
-    <rect width="4" height="12" x="2" y="9" />
-    <circle cx="4" cy="4" r="2" />
-  </svg>
-);
 
 /* ================= TYPES ================= */
 
@@ -648,11 +578,30 @@ function HomeContent() {
 
   /* ================= RENDER ================= */
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'SEO Audit Tool',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web Browser',
+    offers: {
+      '@type': 'Offer',
+      price: '50000',
+      priceCurrency: 'VND',
+      description: 'Nâng cấp PRO'
+    },
+    description: 'Phân tích SEO On-page, Technical và Content với công nghệ AI. Tối ưu hóa thứ hạng tìm kiếm chỉ trong vài giây.'
+  };
+
   return (
     <div 
       onMouseMove={handleGlobalMouseMove}
       className="min-h-screen bg-[#050505] text-white font-sans selection:bg-cyan-500/30 flex flex-col relative overflow-hidden"
     >
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Background Glow Effects */}
       <div className="absolute top-0 left-1/2 w-[1000px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] -z-10 mix-blend-screen pointer-events-none transition-transform duration-1000 ease-out" style={{ transform: 'translate(calc(-50% + var(--parallax-x, 0) * 50px), calc(var(--parallax-y, 0) * 50px))' }} />
       <div className="absolute bottom-0 right-0 w-[800px] h-[600px] bg-purple-600/10 rounded-full blur-[100px] -z-10 mix-blend-screen pointer-events-none transition-transform duration-1000 ease-out" style={{ transform: 'translate(calc(var(--parallax-x, 0) * -60px), calc(var(--parallax-y, 0) * -60px))' }} />
@@ -1084,37 +1033,7 @@ function HomeContent() {
         )}
       </main>
 
-      <footer className="bg-[#050505] border-t border-white/10 py-10 mt-auto relative z-10">
-        <div className="max-w-5xl mx-auto px-4 text-center">
-          <div className="flex items-center justify-center gap-2 mb-6 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
-             <Activity className="w-6 h-6 text-cyan-500" />
-             <span className="font-bold text-white text-xl">SEO<span className="text-cyan-500">Audit</span></span>
-          </div>
-          
-          {/* Social Links */}
-          <div className="flex justify-center gap-6 mb-8">
-            <a href="https://www.facebook.com/eouaen/?locale=vi_VN" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-blue-500 transition-all hover:scale-110">
-              <FacebookIcon className="w-5 h-5" />
-            </a>
-            <a href="#" className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-sky-400 transition-all hover:scale-110">
-              <TwitterIcon className="w-5 h-5" />
-            </a>
-            <a href="https://github.com/Luanhai3" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all hover:scale-110">
-              <GithubIcon className="w-5 h-5" />
-            </a>
-            <a href="https://www.linkedin.com/in/lu%C3%A2n-ho%C3%A0ng-34bb122bb/" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-blue-600 transition-all hover:scale-110">
-              <LinkedinIcon className="w-5 h-5" />
-            </a>
-          </div>
-
-          <p className="text-gray-500 text-sm mb-6">© {new Date().getFullYear()} SEO Audit Tool. Built for the future.</p>
-          <div className="flex justify-center gap-8 text-sm font-medium text-gray-400">
-            <Link href="/terms" className="hover:text-cyan-400 transition-colors">Điều khoản</Link>
-            <Link href="/privacy" className="hover:text-cyan-400 transition-colors">Bảo mật</Link>
-            <Link href="/contact" className="hover:text-cyan-400 transition-colors">Liên hệ</Link>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {paymentConfig && (
         <form ref={paymentFormRef} action={paymentConfig.url} method="POST" className="hidden">

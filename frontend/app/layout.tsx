@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -14,16 +14,25 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
 });
 
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+  ? new URL(process.env.NEXT_PUBLIC_BASE_URL) 
+  : new URL('https://seo-audit-tool.vercel.app');
+
+export const viewport: Viewport = {
+  themeColor: '#050505',
+};
+
 export const metadata: Metadata = {
-  title: "SEO Audit Tool - Web3 Edition",
-  description: "Phân tích SEO Website siêu tốc độ với giao diện Web3.",
-  icons: {
-    icon: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=64&h=64&auto=format&fit=crop",
+  metadataBase: baseUrl,
+  title: {
+    default: "SEO Audit Tool - Web3 Edition",
+    template: "%s | SEO Audit Tool",
   },
+  description: "Phân tích SEO Website siêu tốc độ với giao diện Web3.",
   openGraph: {
     title: "SEO Audit Tool - Web3 Edition",
     description: "Phân tích SEO Website siêu tốc độ với giao diện Web3.",
-    url: "https://seo-audit-tool.vercel.app", // Thay bằng domain thật của bạn nếu có
+    url: baseUrl.toString(),
     siteName: "SEO Audit Tool",
     images: [
       {

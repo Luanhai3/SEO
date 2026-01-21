@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Activity, Zap, Search, FileText, History, Mail, Layout, ShieldCheck } from 'lucide-react';
+import Footer from '../components/Footer';
 
 export default function FeaturesPage() {
   const features = [
@@ -91,15 +92,7 @@ export default function FeaturesPage() {
         </div>
       </main>
 
-      <footer className="bg-[#050505] border-t border-white/10 py-10 mt-auto relative z-10">
-        <div className="max-w-5xl mx-auto px-4 text-center">
-          <div className="flex items-center justify-center gap-2 mb-6 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
-             <Activity className="w-6 h-6 text-cyan-500" />
-             <span className="font-bold text-white text-xl">SEO<span className="text-cyan-500">Audit</span></span>
-          </div>
-          <p className="text-gray-500 text-sm mb-6">© {new Date().getFullYear()} SEO Audit Tool. Built for the future.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

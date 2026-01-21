@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Activity, FileText } from 'lucide-react';
+import Footer from '../components/Footer';
 
 export default function TermsPage() {
   return (
@@ -52,11 +53,7 @@ export default function TermsPage() {
         </div>
       </main>
 
-      <footer className="bg-[#050505] border-t border-white/10 py-10 mt-auto relative z-10">
-        <div className="max-w-5xl mx-auto px-4 text-center">
-          <p className="text-gray-500 text-sm mb-6">© {new Date().getFullYear()} SEO Audit Tool. Built for the future.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
